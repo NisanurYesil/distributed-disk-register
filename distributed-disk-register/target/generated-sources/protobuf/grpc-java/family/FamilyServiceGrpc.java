@@ -46,6 +46,37 @@ public final class FamilyServiceGrpc {
     return getJoinMethod;
   }
 
+  private static volatile io.grpc.MethodDescriptor<family.NodeInfo,
+      family.Empty> getLeaveMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "Leave",
+      requestType = family.NodeInfo.class,
+      responseType = family.Empty.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<family.NodeInfo,
+      family.Empty> getLeaveMethod() {
+    io.grpc.MethodDescriptor<family.NodeInfo, family.Empty> getLeaveMethod;
+    if ((getLeaveMethod = FamilyServiceGrpc.getLeaveMethod) == null) {
+      synchronized (FamilyServiceGrpc.class) {
+        if ((getLeaveMethod = FamilyServiceGrpc.getLeaveMethod) == null) {
+          FamilyServiceGrpc.getLeaveMethod = getLeaveMethod =
+              io.grpc.MethodDescriptor.<family.NodeInfo, family.Empty>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "Leave"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  family.NodeInfo.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  family.Empty.getDefaultInstance()))
+              .setSchemaDescriptor(new FamilyServiceMethodDescriptorSupplier("Leave"))
+              .build();
+        }
+      }
+    }
+    return getLeaveMethod;
+  }
+
   private static volatile io.grpc.MethodDescriptor<family.Empty,
       family.FamilyView> getGetFamilyMethod;
 
@@ -75,6 +106,37 @@ public final class FamilyServiceGrpc {
       }
     }
     return getGetFamilyMethod;
+  }
+
+  private static volatile io.grpc.MethodDescriptor<family.NodeInfo,
+      family.Empty> getHeartbeatMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "Heartbeat",
+      requestType = family.NodeInfo.class,
+      responseType = family.Empty.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<family.NodeInfo,
+      family.Empty> getHeartbeatMethod() {
+    io.grpc.MethodDescriptor<family.NodeInfo, family.Empty> getHeartbeatMethod;
+    if ((getHeartbeatMethod = FamilyServiceGrpc.getHeartbeatMethod) == null) {
+      synchronized (FamilyServiceGrpc.class) {
+        if ((getHeartbeatMethod = FamilyServiceGrpc.getHeartbeatMethod) == null) {
+          FamilyServiceGrpc.getHeartbeatMethod = getHeartbeatMethod =
+              io.grpc.MethodDescriptor.<family.NodeInfo, family.Empty>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "Heartbeat"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  family.NodeInfo.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  family.Empty.getDefaultInstance()))
+              .setSchemaDescriptor(new FamilyServiceMethodDescriptorSupplier("Heartbeat"))
+              .build();
+        }
+      }
+    }
+    return getHeartbeatMethod;
   }
 
   private static volatile io.grpc.MethodDescriptor<family.ChatMessage,
@@ -165,9 +227,23 @@ public final class FamilyServiceGrpc {
 
     /**
      */
+    default void leave(family.NodeInfo request,
+        io.grpc.stub.StreamObserver<family.Empty> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getLeaveMethod(), responseObserver);
+    }
+
+    /**
+     */
     default void getFamily(family.Empty request,
         io.grpc.stub.StreamObserver<family.FamilyView> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getGetFamilyMethod(), responseObserver);
+    }
+
+    /**
+     */
+    default void heartbeat(family.NodeInfo request,
+        io.grpc.stub.StreamObserver<family.Empty> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getHeartbeatMethod(), responseObserver);
     }
 
     /**
@@ -215,10 +291,26 @@ public final class FamilyServiceGrpc {
 
     /**
      */
+    public void leave(family.NodeInfo request,
+        io.grpc.stub.StreamObserver<family.Empty> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getLeaveMethod(), getCallOptions()), request, responseObserver);
+    }
+
+    /**
+     */
     public void getFamily(family.Empty request,
         io.grpc.stub.StreamObserver<family.FamilyView> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getGetFamilyMethod(), getCallOptions()), request, responseObserver);
+    }
+
+    /**
+     */
+    public void heartbeat(family.NodeInfo request,
+        io.grpc.stub.StreamObserver<family.Empty> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getHeartbeatMethod(), getCallOptions()), request, responseObserver);
     }
 
     /**
@@ -255,9 +347,23 @@ public final class FamilyServiceGrpc {
 
     /**
      */
+    public family.Empty leave(family.NodeInfo request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getLeaveMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
     public family.FamilyView getFamily(family.Empty request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getGetFamilyMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public family.Empty heartbeat(family.NodeInfo request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getHeartbeatMethod(), getCallOptions(), request);
     }
 
     /**
@@ -294,10 +400,26 @@ public final class FamilyServiceGrpc {
 
     /**
      */
+    public com.google.common.util.concurrent.ListenableFuture<family.Empty> leave(
+        family.NodeInfo request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getLeaveMethod(), getCallOptions()), request);
+    }
+
+    /**
+     */
     public com.google.common.util.concurrent.ListenableFuture<family.FamilyView> getFamily(
         family.Empty request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getGetFamilyMethod(), getCallOptions()), request);
+    }
+
+    /**
+     */
+    public com.google.common.util.concurrent.ListenableFuture<family.Empty> heartbeat(
+        family.NodeInfo request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getHeartbeatMethod(), getCallOptions()), request);
     }
 
     /**
@@ -310,8 +432,10 @@ public final class FamilyServiceGrpc {
   }
 
   private static final int METHODID_JOIN = 0;
-  private static final int METHODID_GET_FAMILY = 1;
-  private static final int METHODID_RECEIVE_CHAT = 2;
+  private static final int METHODID_LEAVE = 1;
+  private static final int METHODID_GET_FAMILY = 2;
+  private static final int METHODID_HEARTBEAT = 3;
+  private static final int METHODID_RECEIVE_CHAT = 4;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -334,9 +458,17 @@ public final class FamilyServiceGrpc {
           serviceImpl.join((family.NodeInfo) request,
               (io.grpc.stub.StreamObserver<family.FamilyView>) responseObserver);
           break;
+        case METHODID_LEAVE:
+          serviceImpl.leave((family.NodeInfo) request,
+              (io.grpc.stub.StreamObserver<family.Empty>) responseObserver);
+          break;
         case METHODID_GET_FAMILY:
           serviceImpl.getFamily((family.Empty) request,
               (io.grpc.stub.StreamObserver<family.FamilyView>) responseObserver);
+          break;
+        case METHODID_HEARTBEAT:
+          serviceImpl.heartbeat((family.NodeInfo) request,
+              (io.grpc.stub.StreamObserver<family.Empty>) responseObserver);
           break;
         case METHODID_RECEIVE_CHAT:
           serviceImpl.receiveChat((family.ChatMessage) request,
@@ -368,12 +500,26 @@ public final class FamilyServiceGrpc {
               family.FamilyView>(
                 service, METHODID_JOIN)))
         .addMethod(
+          getLeaveMethod(),
+          io.grpc.stub.ServerCalls.asyncUnaryCall(
+            new MethodHandlers<
+              family.NodeInfo,
+              family.Empty>(
+                service, METHODID_LEAVE)))
+        .addMethod(
           getGetFamilyMethod(),
           io.grpc.stub.ServerCalls.asyncUnaryCall(
             new MethodHandlers<
               family.Empty,
               family.FamilyView>(
                 service, METHODID_GET_FAMILY)))
+        .addMethod(
+          getHeartbeatMethod(),
+          io.grpc.stub.ServerCalls.asyncUnaryCall(
+            new MethodHandlers<
+              family.NodeInfo,
+              family.Empty>(
+                service, METHODID_HEARTBEAT)))
         .addMethod(
           getReceiveChatMethod(),
           io.grpc.stub.ServerCalls.asyncUnaryCall(
@@ -430,7 +576,9 @@ public final class FamilyServiceGrpc {
           serviceDescriptor = result = io.grpc.ServiceDescriptor.newBuilder(SERVICE_NAME)
               .setSchemaDescriptor(new FamilyServiceFileDescriptorSupplier())
               .addMethod(getJoinMethod())
+              .addMethod(getLeaveMethod())
               .addMethod(getGetFamilyMethod())
+              .addMethod(getHeartbeatMethod())
               .addMethod(getReceiveChatMethod())
               .build();
         }

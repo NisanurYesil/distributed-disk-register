@@ -1,12 +1,12 @@
 package com.example.family;
 
+
 import family.Empty;
 import family.FamilyServiceGrpc;
 import family.FamilyView;
 import family.NodeInfo;
 import family.ChatMessage;
 import io.grpc.stub.StreamObserver;
-
 public class FamilyServiceImpl extends FamilyServiceGrpc.FamilyServiceImplBase {
 
     private final NodeRegistry registry;
@@ -46,10 +46,22 @@ public class FamilyServiceImpl extends FamilyServiceGrpc.FamilyServiceImplBase {
         System.out.println("💬 Incoming message:");
         System.out.println("  From: " + request.getFromHost() + ":" + request.getFromPort());
         System.out.println("  Text: " + request.getText());
+
         System.out.println("  Timestamp: " + request.getTimestamp());
         System.out.println("--------------------------------------");
 
         responseObserver.onNext(Empty.newBuilder().build());
         responseObserver.onCompleted();
     }
+
+    @Override
+    public void leave(NodeInfo request, StreamObserver<Empty> responseObserver) {
+        registry.remove(request);
+        responseObserver.onNext(Empty.newBuilder().build());
+        responseObserver.onCompleted();
+        System.out.println("👋 Leave: " + request.getHost() + ":" + request.getPort());
+    }
+
+
+
 }
