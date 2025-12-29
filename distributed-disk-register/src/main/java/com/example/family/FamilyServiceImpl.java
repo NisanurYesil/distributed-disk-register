@@ -59,8 +59,17 @@ public class FamilyServiceImpl extends FamilyServiceGrpc.FamilyServiceImplBase {
         registry.remove(request);
         responseObserver.onNext(Empty.newBuilder().build());
         responseObserver.onCompleted();
-        System.out.println("👋 Leave: " + request.getHost() + ":" + request.getPort());
+        System.out.println("Leave: " + request.getHost() + ":" + request.getPort());
     }
+
+    @Override
+    public void heartbeat(NodeInfo request, StreamObserver<Empty> responseObserver) {
+        registry.add(request); // heartbeat varsa üyeyi güncel tut
+        responseObserver.onNext(Empty.newBuilder().build());
+        responseObserver.onCompleted();
+        System.out.println("Heartbeat from " + request.getHost() + ":" + request.getPort());
+    }
+
 
 
 
