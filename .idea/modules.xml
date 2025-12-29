@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/distributed-disk-register.iml" filepath="$PROJECT_DIR$/.idea/distributed-disk-register.iml" />
+      <module fileurl="file://$PROJECT_DIR$/distributed-disk-register/family-grpc.iml" filepath="$PROJECT_DIR$/distributed-disk-register/family-grpc.iml" />
+    </modules>
+  </component>
+</project>
