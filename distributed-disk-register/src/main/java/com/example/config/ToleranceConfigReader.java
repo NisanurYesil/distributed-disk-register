@@ -23,8 +23,12 @@ public class ToleranceConfigReader {
     public int getTimeoutMillis() {
         return Integer.parseInt(props.getProperty("timeout", "1000"));
     }
-
     public String getLogLevel() {
         return props.getProperty("logLevel", "WARN");
     }
+
+    public int getTolerance() {
+        return Integer.parseInt(props.getProperty("TOLERANCE", "1"));
+    }
+
 }
