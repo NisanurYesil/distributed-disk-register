@@ -36,11 +36,12 @@ public class NodeMain {
                 .build();
 
         NodeRegistry registry = new NodeRegistry();
+// ServerBuilder'dan hemen önce (yaklaşık 39. satıra) bu satırı ekle:
+        // NodeMain.java 40. satır
         FamilyServiceImpl service = new FamilyServiceImpl(registry, self);
-
         Server server = ServerBuilder
                 .forPort(port)
-                .addService(service)
+                .addService(service) // Şimdi 'service' değişkenini bulabilecek
                 .build()
                 .start();
 
