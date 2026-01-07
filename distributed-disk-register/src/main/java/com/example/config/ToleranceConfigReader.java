@@ -31,4 +31,7 @@ public class ToleranceConfigReader {
         return Integer.parseInt(props.getProperty("TOLERANCE", "1"));
     }
 
+    public String getIoType() {
+        return props.getProperty("io_type", "buffered");
+    }
 }
