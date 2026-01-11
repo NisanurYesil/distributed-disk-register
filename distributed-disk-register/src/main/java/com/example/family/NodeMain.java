@@ -69,7 +69,7 @@ public class NodeMain {
     }
 
     private static void startLeaderTextListener(NodeRegistry registry, NodeInfo self) {
-        // Sadece lider (5555 portlu node) bu methodu çağırmalı
+        // Sadece lider (5555 portlu node) bu methodu çağırmalıdır
         new Thread(() -> {
             try (ServerSocket serverSocket = new ServerSocket(6666)) {
                 System.out.printf("Leader listening for text on TCP %s:%d%n",
