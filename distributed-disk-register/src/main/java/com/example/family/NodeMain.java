@@ -145,13 +145,9 @@ public class NodeMain {
             }
         }
 
-        // 4. Listeyi KARISTIR (Rastgelelik burada sağlanıyor)
-        Collections.shuffle(targets);
-
-        // 5. İlk 'tolerance' sayısı kadar kişiyi seç
-        // (Eğer listede tolerans sayısından az kişi varsa, hepsi seçilir)
+        // 4. Load Balancer ile Round Robin seçimi yap (Dengeli dağılım)
         int countToSend = Math.min(tolerance, targets.size());
-        List<NodeInfo> selectedNodes = targets.subList(0, countToSend);
+        List<NodeInfo> selectedNodes = LoadBalancer.selectNodes(targets, countToSend);
 
         System.out.println("Replikasyon Hedefleri Seçildi (" + countToSend + " kişi):");
 

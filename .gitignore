@@ -26,5 +26,5 @@ replay_pid*
 # shell
 *.sh
 
-/target/
+target/
 
