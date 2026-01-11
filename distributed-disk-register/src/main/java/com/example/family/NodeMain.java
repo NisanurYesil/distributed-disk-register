@@ -111,7 +111,15 @@ public class NodeMain {
                         .build();
 
                 // Tüm family üyelerine broadcast et
-                broadcastToFamily(registry, self, msg);
+                List<NodeInfo> sentTo = broadcastToFamily(registry, self, msg);
+
+                // İndekse kaydet
+                for (NodeInfo node : sentTo) {
+                    MessageIndex.getInstance().addLocation(ts, node);
+                }
+
+                // Konsola mevcut durumu yaz (Görmek için)
+                MessageIndex.getInstance().printIndex();
             }
 
         } catch (IOException e) {
@@ -120,9 +128,11 @@ public class NodeMain {
             try { client.close(); } catch (IOException ignored) {}
         }
     }
-    private static void broadcastToFamily(NodeRegistry registry,
-                                          NodeInfo self,
-                                          ChatMessage msg) {
+
+    // DÖNÜŞ TİPİ DEĞİŞTİ: void -> List<NodeInfo>
+    private static List<NodeInfo> broadcastToFamily(NodeRegistry registry,
+                                                    NodeInfo self,
+                                                    ChatMessage msg) {
 
         // 1. Config'den Tolerans değerini oku
         int tolerance = 1; // Varsayılan
@@ -148,6 +158,7 @@ public class NodeMain {
         // 4. Load Balancer ile Round Robin seçimi yap (Dengeli dağılım)
         int countToSend = Math.min(tolerance, targets.size());
         List<NodeInfo> selectedNodes = LoadBalancer.selectNodes(targets, countToSend);
+        List<NodeInfo> successfulNodes = new ArrayList<>(); // EKLENDİ
 
         System.out.println("Replikasyon Hedefleri Seçildi (" + countToSend + " kişi):");
 
@@ -166,6 +177,7 @@ public class NodeMain {
                 stub.receiveChat(msg);
 
                 System.out.printf(" -> Mesaj gönderildi: %s:%d%n", n.getHost(), n.getPort());
+                successfulNodes.add(n); // EKLENDİ
 
             } catch (Exception e) {
                 System.err.printf(" -> GÖNDERİLEMEDİ %s:%d (%s)%n",
@@ -174,6 +186,7 @@ public class NodeMain {
                 if (channel != null) channel.shutdownNow();
             }
         }
+        return successfulNodes; // EKLENDİ
     }
 
 
@@ -224,67 +237,4 @@ public class NodeMain {
         // MessageStore parametre olarak geldiği için yeniden oluşturmuyoruz
 
         scheduler.scheduleAtFixedRate(() -> {
-            List<NodeInfo> members = registry.snapshot();
-            System.out.println("======================================");
-            System.out.printf("Family at %s:%d (me)%n", self.getHost(), self.getPort());
-            System.out.println("Time: " + LocalDateTime.now());
-            
-            // Mesaj Sayısı Raporu (Task #9)
-            long msgCount = messageStore.getMessageCount();
-            System.out.println("Local Message Count: " + msgCount);
-            
-            System.out.println("Members:");
-
-            for (NodeInfo n : members) {
-                boolean isMe = n.getHost().equals(self.getHost()) && n.getPort() == self.getPort();
-                System.out.printf(" - %s:%d%s%n",
-                        n.getHost(),
-                        n.getPort(),
-                        isMe ? " (me)" : "");
-            }
-            System.out.println("======================================");
-        }, 3, PRINT_INTERVAL_SECONDS, TimeUnit.SECONDS);
-    }
-
-    private static void startHealthChecker(NodeRegistry registry, NodeInfo self) {
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-
-        scheduler.scheduleAtFixedRate(() -> {
-            List<NodeInfo> members = registry.snapshot();
-
-            for (NodeInfo n : members) {
-                // Kendimizi kontrol etmeyelim
-                if (n.getHost().equals(self.getHost()) && n.getPort() == self.getPort()) {
-                    continue;
-                }
-
-                ManagedChannel channel = null;
-                try {
-                    channel = ManagedChannelBuilder
-                            .forAddress(n.getHost(), n.getPort())
-                            .usePlaintext()
-                            .build();
-
-                    FamilyServiceGrpc.FamilyServiceBlockingStub stub =
-                            FamilyServiceGrpc.newBlockingStub(channel);
-
-                    // Ping gibi kullanıyoruz: cevap bizi ilgilendirmiyor,
-                    // sadece RPC'nin hata fırlatmaması önemli.
-                    stub.getFamily(Empty.newBuilder().build());
-
-                } catch (Exception e) {
-                    // Bağlantı yok / node ölmüş → listeden çıkar
-                    System.out.printf("Node %s:%d unreachable, removing from family%n",
-                            n.getHost(), n.getPort());
-                    registry.remove(n);
-                } finally {
-                    if (channel != null) {
-                        channel.shutdownNow();
-                    }
-                }
-            }
-
-        }, 5, 10, TimeUnit.SECONDS); // 5 sn sonra başla, 10 sn'de bir kontrol et
-    }
-
-}
+            List<NodeInfo> members = registry
