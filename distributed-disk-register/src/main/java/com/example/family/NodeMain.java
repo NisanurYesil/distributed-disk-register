@@ -1,5 +1,7 @@
 package com.example.family;
-
+import java.util.Collections;
+import java.util.ArrayList;
+import com.example.config.ToleranceConfigReader; // Config okumak için
 import family.Empty;
 import family.FamilyServiceGrpc;
 import family.FamilyView;
@@ -36,9 +38,12 @@ public class NodeMain {
                 .build();
 
         NodeRegistry registry = new NodeRegistry();
-// ServerBuilder'dan hemen önce (yaklaşık 39. satıra) bu satırı ekle:
-        // NodeMain.java 40. satır
-        FamilyServiceImpl service = new FamilyServiceImpl(registry, self);
+
+        // 1. MessageStore başlatma (Task #10)
+        com.example.server.MessageStore messageStore = new com.example.server.MessageStore(new ToleranceConfigReader());
+
+        // 2. Servise ve Printer'a bu instance'ı veriyoruz
+        FamilyServiceImpl service = new FamilyServiceImpl(registry, self, messageStore);
         Server server = ServerBuilder
                 .forPort(port)
                 .addService(service) // Şimdi 'service' değişkenini bulabilecek
@@ -53,8 +58,8 @@ public class NodeMain {
         }
 
         discoverExistingNodes(host, port, registry, self);
-        startFamilyPrinter(registry, self);
-        startHealthChecker(registry, self);
+        startFamilyPrinter(registry, self, messageStore);
+        //startHealthChecker(registry, self);
 
         server.awaitTermination();
 
@@ -115,19 +120,43 @@ public class NodeMain {
             try { client.close(); } catch (IOException ignored) {}
         }
     }
-
     private static void broadcastToFamily(NodeRegistry registry,
                                           NodeInfo self,
                                           ChatMessage msg) {
 
-        List<NodeInfo> members = registry.snapshot();
+        // 1. Config'den Tolerans değerini oku
+        int tolerance = 1; // Varsayılan
+        try {
+            ToleranceConfigReader config = new ToleranceConfigReader();
+            tolerance = config.getTolerance();
+        } catch (Exception e) {
+            System.err.println("Config okunamadı, varsayılan tolerans(1) kullanılıyor.");
+        }
 
-        for (NodeInfo n : members) {
-            // Kendimize tekrar gönderme
-            if (n.getHost().equals(self.getHost()) && n.getPort() == self.getPort()) {
-                continue;
+        // 2. Tüm üyeleri al
+        List<NodeInfo> allMembers = registry.snapshot();
+
+        // 3. Kendimiz hariç diğerlerini filtrele
+        List<NodeInfo> targets = new ArrayList<>();
+        for (NodeInfo n : allMembers) {
+            // Eğer bu node ben değilsem listeye ekle
+            if (!n.getHost().equals(self.getHost()) || n.getPort() != self.getPort()) {
+                targets.add(n);
             }
+        }
 
+        // 4. Listeyi KARISTIR (Rastgelelik burada sağlanıyor)
+        Collections.shuffle(targets);
+
+        // 5. İlk 'tolerance' sayısı kadar kişiyi seç
+        // (Eğer listede tolerans sayısından az kişi varsa, hepsi seçilir)
+        int countToSend = Math.min(tolerance, targets.size());
+        List<NodeInfo> selectedNodes = targets.subList(0, countToSend);
+
+        System.out.println("Replikasyon Hedefleri Seçildi (" + countToSend + " kişi):");
+
+        // 6. Sadece seçilenlere gönder
+        for (NodeInfo n : selectedNodes) {
             ManagedChannel channel = null;
             try {
                 channel = ManagedChannelBuilder
@@ -140,16 +169,17 @@ public class NodeMain {
 
                 stub.receiveChat(msg);
 
-                System.out.printf("Broadcasted message to %s:%d%n", n.getHost(), n.getPort());
+                System.out.printf(" -> Mesaj gönderildi: %s:%d%n", n.getHost(), n.getPort());
 
             } catch (Exception e) {
-                System.err.printf("Failed to send to %s:%d (%s)%n",
+                System.err.printf(" -> GÖNDERİLEMEDİ %s:%d (%s)%n",
                         n.getHost(), n.getPort(), e.getMessage());
             } finally {
                 if (channel != null) channel.shutdownNow();
             }
         }
     }
+
 
 
     private static int findFreePort(int startPort) {
@@ -192,17 +222,10 @@ public class NodeMain {
         }
     }
 
-    private static void startFamilyPrinter(NodeRegistry registry, NodeInfo self) {
+    private static void startFamilyPrinter(NodeRegistry registry, NodeInfo self, com.example.server.MessageStore messageStore) {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-        // Raporlama için MessageStore (Task #9)
-        final com.example.server.MessageStore messageStore;
-        try {
-            messageStore = new com.example.server.MessageStore(new com.example.config.ToleranceConfigReader());
-        } catch (IOException e) {
-            System.err.println("Raporlama servisi başlatılamadı: " + e.getMessage());
-            return;
-        }
+        // MessageStore parametre olarak geldiği için yeniden oluşturmuyoruz
 
         scheduler.scheduleAtFixedRate(() -> {
             List<NodeInfo> members = registry.snapshot();
