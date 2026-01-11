@@ -17,10 +17,6 @@ public class FamilyServiceImpl extends FamilyServiceGrpc.FamilyServiceImplBase {
         this.registry.add(self); // Kendimizi deftere ekliyoruz
     }
 
-    /**
-     * Dinamik Üye Katılımı (Task #4):
-     * Yeni bir node sisteme girmek istediğinde bu metodu çağırır.
-     */
     @Override
     public void join(NodeInfo request, StreamObserver<FamilyView> responseObserver) {
         // 1. Yeni gelen üyeyi listeye ekle
@@ -34,22 +30,17 @@ public class FamilyServiceImpl extends FamilyServiceGrpc.FamilyServiceImplBase {
         responseObserver.onNext(view);
         responseObserver.onCompleted();
 
-        System.out.println("✅ Yeni üye katıldı: " + request.getPort());
+        System.out.println("Yeni üye katıldı: " + request.getPort());
     }
 
-    /**
-     * Replication Logic (Task #10):
-     * Gelen mesajı diske kaydeder.
-     */
     @Override
     public void receiveChat(ChatMessage request, StreamObserver<Empty> responseObserver) {
-        System.out.printf("📩 Mesaj alındı (%s:%d): %s%n",
+        System.out.printf(" Mesaj alındı (%s:%d): %s%n",
                 request.getFromHost(), request.getFromPort(), request.getText());
 
         // Mesajı diske yaz
-        // ID olarak timestamp'in bir kısmını kullanıyoruz (demo için yeterli)
         int msgId = (int) (System.currentTimeMillis() & 0xFFFFFFF);
-        
+
         try {
             messageStore.put(msgId, request.getText());
         } catch (Exception e) {
@@ -58,6 +49,18 @@ public class FamilyServiceImpl extends FamilyServiceGrpc.FamilyServiceImplBase {
 
         // Başarılı yanıt dön
         responseObserver.onNext(Empty.newBuilder().build());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void getStats(Empty request, StreamObserver<MessageStats> responseObserver) {
+        long count = messageStore.getMessageCount();
+
+        MessageStats stats = MessageStats.newBuilder()
+                .setMessageCount(count)
+                .build();
+
+        responseObserver.onNext(stats);
         responseObserver.onCompleted();
     }
 }

@@ -12,9 +12,6 @@ public class LoadBalancer {
     // Round Robin için global sayaç (Sıranın kimde olduğunu tutar)
     private static final AtomicInteger counter = new AtomicInteger(0);
 
-    /**
-     * Aday listesinden Round Robin algoritması ile 'count' kadar üye seçer.
-     */
     public static List<NodeInfo> selectNodes(List<NodeInfo> candidates, int count) {
         if (candidates == null || candidates.isEmpty()) {
             return Collections.emptyList();

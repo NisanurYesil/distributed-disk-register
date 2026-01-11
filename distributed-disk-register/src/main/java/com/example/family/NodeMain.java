@@ -1,4 +1,5 @@
 package com.example.family;
+
 import java.util.Collections;
 import java.util.ArrayList;
 import com.example.config.ToleranceConfigReader; // Config okumak için
@@ -15,7 +16,6 @@ import io.grpc.ServerBuilder;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.Socket;
-
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -39,7 +39,6 @@ public class NodeMain {
 
         NodeRegistry registry = new NodeRegistry();
 
-        // 1. MessageStore başlatma (Task #10)
         com.example.server.MessageStore messageStore = new com.example.server.MessageStore(new ToleranceConfigReader());
 
         // 2. Servise ve Printer'a bu instance'ı veriyoruz
@@ -59,12 +58,9 @@ public class NodeMain {
 
         discoverExistingNodes(host, port, registry, self);
         startFamilyPrinter(registry, self, messageStore);
-        //startHealthChecker(registry, self);
+        // startHealthChecker(registry, self);
 
         server.awaitTermination();
-
-
-
 
     }
 
@@ -87,8 +83,8 @@ public class NodeMain {
     }
 
     private static void handleClientTextConnection(Socket client,
-                                                   NodeRegistry registry,
-                                                   NodeInfo self) {
+            NodeRegistry registry,
+            NodeInfo self) {
         System.out.println("New TCP client connected: " + client.getRemoteSocketAddress());
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(client.getInputStream()))) {
@@ -96,12 +92,13 @@ public class NodeMain {
             String line;
             while ((line = reader.readLine()) != null) {
                 String text = line.trim();
-                if (text.isEmpty()) continue;
+                if (text.isEmpty())
+                    continue;
 
                 long ts = System.currentTimeMillis();
 
                 // Kendi üstüne de yaz
-                System.out.println("📝 Received from TCP: " + text);
+                System.out.println("Received from TCP: " + text);
 
                 ChatMessage msg = ChatMessage.newBuilder()
                         .setText(text)
@@ -125,14 +122,17 @@ public class NodeMain {
         } catch (IOException e) {
             System.err.println("TCP client handler error: " + e.getMessage());
         } finally {
-            try { client.close(); } catch (IOException ignored) {}
+            try {
+                client.close();
+            } catch (IOException ignored) {
+            }
         }
     }
 
     // DÖNÜŞ TİPİ DEĞİŞTİ: void -> List<NodeInfo>
     private static List<NodeInfo> broadcastToFamily(NodeRegistry registry,
-                                                    NodeInfo self,
-                                                    ChatMessage msg) {
+            NodeInfo self,
+            ChatMessage msg) {
 
         // 1. Config'den Tolerans değerini oku
         int tolerance = 1; // Varsayılan
@@ -158,7 +158,7 @@ public class NodeMain {
         // 4. Load Balancer ile Round Robin seçimi yap (Dengeli dağılım)
         int countToSend = Math.min(tolerance, targets.size());
         List<NodeInfo> selectedNodes = LoadBalancer.selectNodes(targets, countToSend);
-        List<NodeInfo> successfulNodes = new ArrayList<>(); // EKLENDİ
+        List<NodeInfo> successfulNodes = new ArrayList<>();
 
         System.out.println("Replikasyon Hedefleri Seçildi (" + countToSend + " kişi):");
 
@@ -171,25 +171,23 @@ public class NodeMain {
                         .usePlaintext()
                         .build();
 
-                FamilyServiceGrpc.FamilyServiceBlockingStub stub =
-                        FamilyServiceGrpc.newBlockingStub(channel);
+                FamilyServiceGrpc.FamilyServiceBlockingStub stub = FamilyServiceGrpc.newBlockingStub(channel);
 
                 stub.receiveChat(msg);
 
                 System.out.printf(" -> Mesaj gönderildi: %s:%d%n", n.getHost(), n.getPort());
-                successfulNodes.add(n); // EKLENDİ
+                successfulNodes.add(n);
 
             } catch (Exception e) {
                 System.err.printf(" -> GÖNDERİLEMEDİ %s:%d (%s)%n",
                         n.getHost(), n.getPort(), e.getMessage());
             } finally {
-                if (channel != null) channel.shutdownNow();
+                if (channel != null)
+                    channel.shutdownNow();
             }
         }
-        return successfulNodes; // EKLENDİ
+        return successfulNodes;
     }
-
-
 
     private static int findFreePort(int startPort) {
         int port = startPort;
@@ -203,9 +201,9 @@ public class NodeMain {
     }
 
     private static void discoverExistingNodes(String host,
-                                              int selfPort,
-                                              NodeRegistry registry,
-                                              NodeInfo self) {
+            int selfPort,
+            NodeRegistry registry,
+            NodeInfo self) {
 
         for (int port = START_PORT; port < selfPort; port++) {
             ManagedChannel channel = null;
@@ -215,8 +213,7 @@ public class NodeMain {
                         .usePlaintext()
                         .build();
 
-                FamilyServiceGrpc.FamilyServiceBlockingStub stub =
-                        FamilyServiceGrpc.newBlockingStub(channel);
+                FamilyServiceGrpc.FamilyServiceBlockingStub stub = FamilyServiceGrpc.newBlockingStub(channel);
 
                 FamilyView view = stub.join(self);
                 registry.addAll(view.getMembersList());
@@ -226,15 +223,70 @@ public class NodeMain {
 
             } catch (Exception ignored) {
             } finally {
-                if (channel != null) channel.shutdownNow();
+                if (channel != null)
+                    channel.shutdownNow();
             }
         }
     }
 
-    private static void startFamilyPrinter(NodeRegistry registry, NodeInfo self, com.example.server.MessageStore messageStore) {
+    private static void startFamilyPrinter(NodeRegistry registry, NodeInfo self,
+            com.example.server.MessageStore messageStore) {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
         // MessageStore parametre olarak geldiği için yeniden oluşturmuyoruz
 
         scheduler.scheduleAtFixedRate(() -> {
-            List<NodeInfo> members = registry
+            List<NodeInfo> members = registry.snapshot();
+            System.out.println("======================================");
+            System.out.printf("Family at %s:%d (me)%n", self.getHost(), self.getPort());
+            System.out.println("Time: " + LocalDateTime.now());
+
+            // Mesaj Sayısı Raporu
+            long localCount = messageStore.getMessageCount();
+            System.out.println("Local Message Count: " + localCount);
+
+            if (self.getPort() == START_PORT) {
+                long totalNetworkMessages = localCount;
+                System.out.println("--- System Observer Report ---");
+
+                for (NodeInfo n : members) {
+                    // Kendim hariç diğerlerine sor
+                    if (n.getHost().equals(self.getHost()) && n.getPort() == self.getPort())
+                        continue;
+
+                    ManagedChannel channel = null;
+                    try {
+                        channel = ManagedChannelBuilder.forAddress(n.getHost(), n.getPort())
+                                .usePlaintext().build();
+                        FamilyServiceGrpc.FamilyServiceBlockingStub stub = FamilyServiceGrpc.newBlockingStub(channel);
+
+                        // RPC Çağrısı
+                        family.MessageStats stats = stub.getStats(Empty.newBuilder().build());
+                        System.out.printf(" -> Node %d has %d messages%n", n.getPort(), stats.getMessageCount());
+                        totalNetworkMessages += stats.getMessageCount();
+
+                    } catch (Exception e) {
+                        System.out.println(" -> Node " + n.getPort() + " unreachable");
+                    } finally {
+                        if (channel != null)
+                            channel.shutdownNow();
+                    }
+                }
+                System.out.println("TOTAL NETWORK MESSAGES: " + totalNetworkMessages);
+                System.out.println("------------------------------");
+            }
+            // ----------------------------------------------------
+
+            System.out.println("Members:");
+
+            for (NodeInfo n : members) {
+                boolean isMe = n.getHost().equals(self.getHost()) && n.getPort() == self.getPort();
+                System.out.printf(" - %s:%d%s%n",
+                        n.getHost(),
+                        n.getPort(),
+                        isMe ? " (me)" : "");
+            }
+            System.out.println("======================================");
+        }, 3, PRINT_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    }
+}

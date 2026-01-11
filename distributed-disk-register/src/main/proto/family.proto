@@ -28,23 +28,17 @@ message ChatMessage {
 
 
 service FamilyService {
-
   rpc Join(NodeInfo) returns (FamilyView);
-
-
   rpc Leave(NodeInfo) returns (Empty);
-
-
   rpc GetFamily(Empty) returns (FamilyView);
-
-
   rpc Heartbeat(NodeInfo) returns (Empty);
-
-
   rpc ReceiveChat(ChatMessage) returns (Empty);
+  rpc GetStats(Empty) returns (MessageStats);
 }
 
-// --- Mesaj kayıt sistemi için ek tanımlar ---
+message MessageStats {
+  int64 messageCount = 1;
+}
 
 message StoredMessage {
   int32 id = 1;

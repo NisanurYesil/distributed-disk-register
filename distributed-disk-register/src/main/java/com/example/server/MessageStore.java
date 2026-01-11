@@ -23,10 +23,8 @@ public class MessageStore {
             dir.mkdirs();
         }
 
-        // Config'den io_type değerini oku (Hata almamak için getIoType metodunu ConfigReader'a eklemelisin)
         String ioType = config.getIoType();
 
-        // Seçime göre stratejiyi yükle (Strategy Pattern)
         if ("unbuffered".equalsIgnoreCase(ioType)) {
             this.diskStrategy = new UnbufferedDiskStrategy(dir);
             System.out.println("LOG: Disk Modu -> UNBUFFERED (Güvenli/Direct IO)");
@@ -38,10 +36,8 @@ public class MessageStore {
 
     // Mesaj Kaydetme (PUT)
     public String put(int id, String msg) {
-        // 1. Önce RAM'e yaz (Hız için)
         memoryMap.put(id, msg);
 
-        // 2. Seçilen strateji ile diske yaz (Güvenlik için)
         try {
             diskStrategy.writeToDisk(id, msg);
             return "OK";
@@ -53,12 +49,10 @@ public class MessageStore {
 
     // Mesaj Okuma (GET)
     public String get(int id) {
-        // 1. Önce RAM'e bak (En hızlısı)
         if (memoryMap.containsKey(id)) {
             return memoryMap.get(id);
         }
 
-        // 2. RAM'de yoksa diskten oku (Crash sonrası kurtarma)
         try {
             String msg = diskStrategy.readFromDisk(id);
             if (msg != null) {

@@ -25,7 +25,6 @@ public class StorageServiceImpl extends StorageServiceGrpc.StorageServiceImplBas
     @Override
     public void retrieve(MessageId request, StreamObserver<StoredMessage> responseObserver) {
         try {
-            // HATA DÜZELTME: 'read' yerine 'get' kullanıyoruz
             String content = messageStore.get(request.getId());
 
             StoredMessage msg = StoredMessage.newBuilder()
