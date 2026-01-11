@@ -73,4 +73,11 @@ public class MessageStore {
 
         return "NOT_FOUND";
     }
+    public long getMessageCount() {
+        if (dir.exists() && dir.isDirectory()) {
+            String[] files = dir.list();
+            return files != null ? files.length : 0;
+        }
+        return 0;
+    }
 }

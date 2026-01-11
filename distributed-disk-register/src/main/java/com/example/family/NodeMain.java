@@ -195,11 +195,25 @@ public class NodeMain {
     private static void startFamilyPrinter(NodeRegistry registry, NodeInfo self) {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
+        // Raporlama için MessageStore (Task #9)
+        final com.example.server.MessageStore messageStore;
+        try {
+            messageStore = new com.example.server.MessageStore(new com.example.config.ToleranceConfigReader());
+        } catch (IOException e) {
+            System.err.println("Raporlama servisi başlatılamadı: " + e.getMessage());
+            return;
+        }
+
         scheduler.scheduleAtFixedRate(() -> {
             List<NodeInfo> members = registry.snapshot();
             System.out.println("======================================");
             System.out.printf("Family at %s:%d (me)%n", self.getHost(), self.getPort());
             System.out.println("Time: " + LocalDateTime.now());
+            
+            // Mesaj Sayısı Raporu (Task #9)
+            long msgCount = messageStore.getMessageCount();
+            System.out.println("Local Message Count: " + msgCount);
+            
             System.out.println("Members:");
 
             for (NodeInfo n : members) {
