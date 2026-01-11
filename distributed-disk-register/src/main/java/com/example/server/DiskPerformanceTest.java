@@ -42,6 +42,17 @@ public class DiskPerformanceTest {
         end = System.currentTimeMillis();
         printResults("Unbuffered IO", end - start);
 
+        // 3. ZERO-COPY IO TESTİ (YENİ)
+        System.out.println("\n--- ZeroCopyDiskStrategy Test Ediliyor ---");
+        DiskStrategy zeroCopy = new ZeroCopyDiskStrategy(dir);
+        start = System.currentTimeMillis();
+
+        for (int i = 0; i < MESSAGE_COUNT; i++) {
+            zeroCopy.writeToDisk(i, "Test mesaji " + i);
+        }
+        end = System.currentTimeMillis();
+        printResults("Zero Copy IO", end - start);
+
         System.out.println("\nTest tamamlandı. Dosyalar '" + TEST_DIR + "' klasöründe.");
     }
 
@@ -52,14 +63,4 @@ public class DiskPerformanceTest {
         System.out.println(type + " Süre: " + durationMs + " ms");
         System.out.printf(type + " Hız : %.2f mesaj/saniye%n", throughput);
     }
-
-    // Test sonrası dosyaları silmek istersen bu metodu açabilirsin
-    /*
-    private static void cleanDirectory(File dir) {
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File f : files) f.delete();
-        }
-    }
-    */
 }
