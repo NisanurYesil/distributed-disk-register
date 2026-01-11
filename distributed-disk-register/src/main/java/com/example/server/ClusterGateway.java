@@ -10,9 +10,11 @@ import java.util.concurrent.Executors;
 public class ClusterGateway {
     private final int port;
     private final ExecutorService pool = Executors.newFixedThreadPool(32);
+    private final MessageStore messageStore;
 
-    public ClusterGateway(int port) {
+    public ClusterGateway(int port) throws IOException {
         this.port = port;
+        this.messageStore = new MessageStore(new com.example.config.ToleranceConfigReader());
     }
 
     public void start() throws IOException {
@@ -37,7 +39,7 @@ public class ClusterGateway {
             String line;
             while ((line = reader.readLine()) != null) {
                 Command cmd = CommandParser.parse(line);
-                String result = cmd.execute();
+                String result = cmd.execute(messageStore);
                 writer.write(result);
                 writer.newLine();
                 writer.flush();

@@ -9,13 +9,13 @@ public class CommandParser {
         } else if (parts[0].equalsIgnoreCase("GET") && parts.length == 2) {
             return new GetCommand(Integer.parseInt(parts[1]));
         } else {
-            return () -> "ERROR: Geçersiz komut";
+            return (store) -> "ERROR: Geçersiz komut";
         }
     }
 }
 
 interface Command {
-    String execute();
+    String execute(MessageStore store);
 }
 
 class SetCommand implements Command {
@@ -24,8 +24,8 @@ class SetCommand implements Command {
     public SetCommand(int id, String msg) { this.id = id; this.msg = msg; }
 
     @Override
-    public String execute() {
-        return MessageStore.put(id, msg);
+    public String execute(MessageStore store) {
+        return store.put(id, msg);
     }
 }
 
@@ -34,7 +34,7 @@ class GetCommand implements Command {
     public GetCommand(int id) { this.id = id; }
 
     @Override
-    public String execute() {
-        return MessageStore.get(id);
+    public String execute(MessageStore store) {
+        return store.get(id);
     }
 }

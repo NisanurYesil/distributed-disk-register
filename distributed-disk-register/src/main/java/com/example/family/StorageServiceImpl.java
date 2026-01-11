@@ -13,7 +13,7 @@ public class StorageServiceImpl extends StorageServiceGrpc.StorageServiceImplBas
     @Override
     public void store(StoredMessage request, StreamObserver<StoreResult> responseObserver) {
         try {
-            MessageStore.put(request.getId(), request.getText());
+            messageStore.put(request.getId(), request.getText());
             // setOk(true) yerine setStatus("OK") kullanmalısın
             responseObserver.onNext(StoreResult.newBuilder().setStatus("OK").build());
         } catch (Exception e) {
@@ -26,7 +26,7 @@ public class StorageServiceImpl extends StorageServiceGrpc.StorageServiceImplBas
     public void retrieve(MessageId request, StreamObserver<StoredMessage> responseObserver) {
         try {
             // HATA DÜZELTME: 'read' yerine 'get' kullanıyoruz
-            String content = MessageStore.get(request.getId());
+            String content = messageStore.get(request.getId());
 
             StoredMessage msg = StoredMessage.newBuilder()
                     .setId(request.getId())
