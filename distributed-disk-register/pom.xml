@@ -92,6 +92,40 @@
                         <argument>com.example.family.MemberCrashTest</argument>
                     </arguments>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>run-node-main</id>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <cleanupDaemonThreads>false</cleanupDaemonThreads>
+                            <executable>java</executable>
+                            <classpathScope>test</classpathScope>
+                            <arguments>
+                                <argument>-cp</argument>
+                                <classpath/>
+                                <argument>com.example.family.NodeMain</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>run-client-tool</id>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <cleanupDaemonThreads>false</cleanupDaemonThreads>
+                            <executable>java</executable>
+                            <classpathScope>test</classpathScope>
+                            <arguments>
+                                <argument>-cp</argument>
+                                <classpath/>
+                                <argument>com.example.family.ClientTestTool</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
         </plugins>
