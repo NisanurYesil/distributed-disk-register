@@ -14,7 +14,7 @@ public class ClusterGateway {
 
     public ClusterGateway(int port) throws IOException {
         this.port = port;
-        this.messageStore = new MessageStore(new com.example.config.ToleranceConfigReader());
+        this.messageStore = new MessageStore(new com.example.config.ToleranceConfigReader(), port);
     }
 
     public void start() throws IOException {
@@ -33,8 +33,8 @@ public class ClusterGateway {
 
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
-             BufferedWriter writer = new BufferedWriter(
-                     new OutputStreamWriter(client.getOutputStream(), StandardCharsets.UTF_8))) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(client.getOutputStream(), StandardCharsets.UTF_8))) {
 
             String line;
             while ((line = reader.readLine()) != null) {
@@ -47,7 +47,10 @@ public class ClusterGateway {
         } catch (Exception e) {
             System.err.println("[Leader] Error with client " + remote + ": " + e.getMessage());
         } finally {
-            try { client.close(); } catch (IOException ignored) {}
+            try {
+                client.close();
+            } catch (IOException ignored) {
+            }
         }
     }
 
@@ -55,5 +58,3 @@ public class ClusterGateway {
         new ClusterGateway(6666).start();
     }
 }
-
-

@@ -1,5 +1,6 @@
 package com.example.family;
 
+import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.ArrayList;
 import com.example.config.ToleranceConfigReader; // Config okumak için
@@ -39,13 +40,15 @@ public class NodeMain {
 
         NodeRegistry registry = new NodeRegistry();
 
-        com.example.server.MessageStore messageStore = new com.example.server.MessageStore(new ToleranceConfigReader());
+        com.example.server.MessageStore messageStore = new com.example.server.MessageStore(new ToleranceConfigReader(),
+                port);
 
         // 2. Servise ve Printer'a bu instance'ı veriyoruz
         FamilyServiceImpl service = new FamilyServiceImpl(registry, self, messageStore);
         Server server = ServerBuilder
                 .forPort(port)
                 .addService(service) // Şimdi 'service' değişkenini bulabilecek
+                .addService(new StorageServiceImpl(messageStore)) // Storage servisini ekliyoruz
                 .build()
                 .start();
 
@@ -95,7 +98,53 @@ public class NodeMain {
                 if (text.isEmpty())
                     continue;
 
+                // READ Komutu Kontrolü
+                if (text.startsWith("READ:")) {
+                    try {
+                        // 1. ID'yi long (Timestamp) olarak parse et
+                        long idToCheck = Long.parseLong(text.split(":")[1]);
+                        System.out.println("Reading message Timestamp: " + idToCheck);
+
+                        // 2. Index'ten nerede olduğunu bul (Index Long tutuyor, bu doğru)
+                        List<String> locations = MessageIndex.getInstance().getLocations(idToCheck);
+                        boolean found = false;
+
+                        // 3. Storage Service için int ID hazırla (Deterministik dönüşüm)
+                        int storageId = (int) (idToCheck & 0xFFFFFFF);
+                        System.out.println("Mapped Storage ID: " + storageId);
+
+                        for (String loc : locations) {
+                            String[] parts = loc.split(":");
+                            NodeInfo node = NodeInfo.newBuilder().setHost(parts[0]).setPort(Integer.parseInt(parts[1]))
+                                    .build();
+
+                            // 4. İsteği int ID ile yap
+                            String result = StorageClient.sendRetrieveRPC(node, storageId);
+                            if (result != null) {
+                                System.out.println("SUCCESS: Retrieved '" + result + "' from " + loc);
+                                found = true;
+                                break;
+                            } else {
+                                System.out.println("FAILED to retrieve from " + loc);
+                            }
+                        }
+                        if (!found)
+                            System.err.println("COULD NOT RETRIEVE MESSAGE " + idToCheck);
+
+                    } catch (Exception e) {
+                        System.err.println("Invalid READ format: " + e.getMessage());
+                    }
+                    continue; // Broadcast yapma, döngüye devam et
+                }
+
                 long ts = System.currentTimeMillis();
+
+                // İstemciye ACK ve Timestamp gönder (Test için gerekli)
+                try {
+                    PrintWriter out = new PrintWriter(client.getOutputStream(), true);
+                    out.println("ACK:" + ts);
+                } catch (Exception ignored) {
+                }
 
                 // Kendi üstüne de yaz
                 System.out.println("Received from TCP: " + text);

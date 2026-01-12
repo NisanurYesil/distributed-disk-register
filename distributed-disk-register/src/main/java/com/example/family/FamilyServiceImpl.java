@@ -39,7 +39,8 @@ public class FamilyServiceImpl extends FamilyServiceGrpc.FamilyServiceImplBase {
                 request.getFromHost(), request.getFromPort(), request.getText());
 
         // Mesajı diske yaz
-        int msgId = (int) (System.currentTimeMillis() & 0xFFFFFFF);
+        // ID'yi gönderilen timestamp'ten türet (Deterministik olması için)
+        int msgId = (int) (request.getTimestamp() & 0xFFFFFFF);
 
         try {
             messageStore.put(msgId, request.getText());

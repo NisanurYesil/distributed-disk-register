@@ -8,9 +8,9 @@ public class ToleranceConfigReader {
     private final Properties props = new Properties();
 
     public ToleranceConfigReader() throws IOException {
-        try (InputStream input = getClass().getClassLoader().getResourceAsStream("tolerans.conf")) {
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream("tolerance.conf")) {
             if (input == null) {
-                throw new IOException("tolerans.conf bulunamadı!");
+                throw new IOException("tolerance.conf bulunamadı!");
             }
             props.load(input);
         }
@@ -23,6 +23,7 @@ public class ToleranceConfigReader {
     public int getTimeoutMillis() {
         return Integer.parseInt(props.getProperty("timeout", "1000"));
     }
+
     public String getLogLevel() {
         return props.getProperty("logLevel", "WARN");
     }

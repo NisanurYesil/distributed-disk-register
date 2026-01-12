@@ -13,12 +13,12 @@ public class MessageStore {
     // Seçilen Disk Stratejisi (Arayüz)
     private final DiskStrategy diskStrategy;
 
-    // Kayıt klasörü
-    private final File dir = new File("messages");
+    private final File dir;
 
     // CONSTRUCTOR: Config dosyasını alıp stratejiyi belirler
-    public MessageStore(ToleranceConfigReader config) {
+    public MessageStore(ToleranceConfigReader config, int port) {
         // Klasör yoksa oluştur
+        this.dir = new File("messages_" + port);
         if (!dir.exists()) {
             dir.mkdirs();
         }
@@ -67,6 +67,7 @@ public class MessageStore {
 
         return "NOT_FOUND";
     }
+
     public long getMessageCount() {
         if (dir.exists() && dir.isDirectory()) {
             String[] files = dir.list();
