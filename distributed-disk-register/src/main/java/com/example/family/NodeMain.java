@@ -56,7 +56,7 @@ public class NodeMain {
 
         // Eğer bu ilk node ise (port 5555), TCP 6666'da text dinlesin
         if (port == START_PORT) {
-            startLeaderTextListener(registry, self);
+            startLeaderTextListener(registry, self, messageStore);
         }
 
         discoverExistingNodes(host, port, registry, self);
@@ -67,7 +67,8 @@ public class NodeMain {
 
     }
 
-    private static void startLeaderTextListener(NodeRegistry registry, NodeInfo self) {
+    private static void startLeaderTextListener(NodeRegistry registry, NodeInfo self,
+            com.example.server.MessageStore messageStore) {
         // Sadece lider (5555 portlu node) bu methodu çağırmalıdır
         new Thread(() -> {
             try (ServerSocket serverSocket = new ServerSocket(6666)) {
@@ -76,7 +77,7 @@ public class NodeMain {
 
                 while (true) {
                     Socket client = serverSocket.accept();
-                    new Thread(() -> handleClientTextConnection(client, registry, self)).start();
+                    new Thread(() -> handleClientTextConnection(client, registry, self, messageStore)).start();
                 }
 
             } catch (IOException e) {
@@ -87,7 +88,8 @@ public class NodeMain {
 
     private static void handleClientTextConnection(Socket client,
             NodeRegistry registry,
-            NodeInfo self) {
+            NodeInfo self,
+            com.example.server.MessageStore messageStore) {
         System.out.println("New TCP client connected: " + client.getRemoteSocketAddress());
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(client.getInputStream()))) {
@@ -135,6 +137,38 @@ public class NodeMain {
                         System.err.println("Invalid READ format: " + e.getMessage());
                     }
                     continue; // Broadcast yapma, döngüye devam et
+                }
+
+                // SET Komutu
+                if (text.toUpperCase().startsWith("SET ")) {
+                    String[] parts = text.split(" ", 3);
+                    if (parts.length == 3) {
+                        try {
+                            int id = Integer.parseInt(parts[1]);
+                            String result = messageStore.put(id, parts[2]);
+                            PrintWriter out = new PrintWriter(client.getOutputStream(), true);
+                            out.println(result);
+                        } catch (Exception e) {
+                            new PrintWriter(client.getOutputStream(), true).println("ERROR: " + e.getMessage());
+                        }
+                    }
+                    continue;
+                }
+
+                // GET Komutu
+                if (text.toUpperCase().startsWith("GET ")) {
+                    String[] parts = text.split(" ", 2);
+                    if (parts.length == 2) {
+                        try {
+                            int id = Integer.parseInt(parts[1]);
+                            String result = messageStore.get(id);
+                            PrintWriter out = new PrintWriter(client.getOutputStream(), true);
+                            out.println(result);
+                        } catch (Exception e) {
+                            new PrintWriter(client.getOutputStream(), true).println("ERROR: " + e.getMessage());
+                        }
+                    }
+                    continue;
                 }
 
                 long ts = System.currentTimeMillis();

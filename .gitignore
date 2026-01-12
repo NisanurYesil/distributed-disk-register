@@ -28,3 +28,7 @@ replay_pid*
 
 target/
 
+
+# Generated metrics and messages
+**/hatokuse_client_metrics.csv
+**/messages_*
