@@ -163,7 +163,8 @@ public class NodeMain {
                             int id = Integer.parseInt(parts[1]);
                             String result = messageStore.get(id);
                             PrintWriter out = new PrintWriter(client.getOutputStream(), true);
-                            out.println(result);
+                            // HaToKuSe protokolü gereği başarılı yanıtlar OK ile başlamalı
+                            out.println("OK " + result);
                         } catch (Exception e) {
                             new PrintWriter(client.getOutputStream(), true).println("ERROR: " + e.getMessage());
                         }

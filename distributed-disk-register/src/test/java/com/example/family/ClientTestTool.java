@@ -63,10 +63,15 @@ public class ClientTestTool {
         String getResponse = sendCommandWithResult(getCmd);
         System.out.println("Result: " + getResponse);
 
-        if ("IntegrationTestValue".equals(getResponse)) {
-            System.out.println("\n✅ TEST PASSED: Data retrieved successfully.");
+        if (getResponse.startsWith("OK ")) {
+            String value = getResponse.substring(3);
+            if ("IntegrationTestValue".equals(value)) {
+                System.out.println("\n✅ TEST PASSED: Data retrieved successfully.");
+            } else {
+                System.err.println("❌ TEST FAILED: Expected 'IntegrationTestValue', got '" + value + "'");
+            }
         } else {
-            System.err.println("❌ TEST FAILED: Expected 'IntegrationTestValue', got '" + getResponse + "'");
+            System.err.println("❌ TEST FAILED: Response did not start with OK. Got: '" + getResponse + "'");
         }
     }
 
