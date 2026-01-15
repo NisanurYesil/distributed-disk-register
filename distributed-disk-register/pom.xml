@@ -14,6 +14,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <grpc.version>1.58.0</grpc.version>
         <protobuf.version>3.21.12</protobuf.version>
+        <exec.mainClass>com.example.family.NodeMain</exec.mainClass>
     </properties>
 
     <dependencies>
@@ -84,61 +85,25 @@
                 <version>3.1.0</version>
                 <configuration>
                     <cleanupDaemonThreads>false</cleanupDaemonThreads>
-                    <executable>java</executable>
-                    <classpathScope>test</classpathScope>
-                    <arguments>
-                        <argument>-cp</argument>
-                        <classpath/>
-                        <argument>com.example.family.MemberCrashTest</argument>
-                    </arguments>
                 </configuration>
                 <executions>
                     <execution>
                         <id>run-node-main</id>
                         <goals>
-                            <goal>exec</goal>
+                            <goal>java</goal>
                         </goals>
                         <configuration>
-                            <cleanupDaemonThreads>false</cleanupDaemonThreads>
-                            <executable>java</executable>
-                            <classpathScope>test</classpathScope>
-                            <arguments>
-                                <argument>-cp</argument>
-                                <classpath/>
-                                <argument>com.example.family.NodeMain</argument>
-                            </arguments>
+                            <mainClass>com.example.family.NodeMain</mainClass>
                         </configuration>
                     </execution>
                     <execution>
-                        <id>run-client-tool</id>
+                        <id>run-simple-client</id>
                         <goals>
-                            <goal>exec</goal>
+                            <goal>java</goal>
                         </goals>
                         <configuration>
-                            <cleanupDaemonThreads>false</cleanupDaemonThreads>
-                            <executable>java</executable>
+                            <mainClass>com.example.family.SimpleClient</mainClass>
                             <classpathScope>test</classpathScope>
-                            <arguments>
-                                <argument>-cp</argument>
-                                <classpath/>
-                                <argument>com.example.family.ClientTestTool</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>run-hatokuse-client</id>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <cleanupDaemonThreads>false</cleanupDaemonThreads>
-                            <executable>java</executable>
-                            <classpathScope>test</classpathScope>
-                            <arguments>
-                                <argument>-cp</argument>
-                                <classpath/>
-                                <argument>com.example.family.HaToKuSeClient</argument>
-                            </arguments>
                         </configuration>
                     </execution>
                 </executions>

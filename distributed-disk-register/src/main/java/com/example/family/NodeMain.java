@@ -9,6 +9,7 @@ import family.FamilyServiceGrpc;
 import family.FamilyView;
 import family.NodeInfo;
 import family.ChatMessage;
+import family.StoredMessage; // YENİ EKLENDİ
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -17,6 +18,7 @@ import io.grpc.ServerBuilder;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.net.InetAddress; // YENİ EKLENDİ
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -30,7 +32,10 @@ public class NodeMain {
     private static final int PRINT_INTERVAL_SECONDS = 10;
 
     public static void main(String[] args) throws Exception {
-        String host = "127.0.0.1";
+        // --- FIX 1: Dinamik IP Tespiti ---
+        String host = java.net.InetAddress.getLocalHost().getHostAddress();
+        // -------------------------------
+
         int port = findFreePort(START_PORT);
 
         NodeInfo self = NodeInfo.newBuilder()
@@ -100,54 +105,33 @@ public class NodeMain {
                 if (text.isEmpty())
                     continue;
 
-                // READ Komutu Kontrolü
-                if (text.startsWith("READ:")) {
-                    try {
-                        // 1. ID'yi long (Timestamp) olarak parse et
-                        long idToCheck = Long.parseLong(text.split(":")[1]);
-                        System.out.println("Reading message Timestamp: " + idToCheck);
-
-                        // 2. Index'ten nerede olduğunu bul (Index Long tutuyor, bu doğru)
-                        List<String> locations = MessageIndex.getInstance().getLocations(idToCheck);
-                        boolean found = false;
-
-                        // 3. Storage Service için int ID hazırla (Deterministik dönüşüm)
-                        int storageId = (int) (idToCheck & 0xFFFFFFF);
-                        System.out.println("Mapped Storage ID: " + storageId);
-
-                        for (String loc : locations) {
-                            String[] parts = loc.split(":");
-                            NodeInfo node = NodeInfo.newBuilder().setHost(parts[0]).setPort(Integer.parseInt(parts[1]))
-                                    .build();
-
-                            // 4. İsteği int ID ile yap
-                            String result = StorageClient.sendRetrieveRPC(node, storageId);
-                            if (result != null) {
-                                System.out.println("SUCCESS: Retrieved '" + result + "' from " + loc);
-                                found = true;
-                                break;
-                            } else {
-                                System.out.println("FAILED to retrieve from " + loc);
-                            }
-                        }
-                        if (!found)
-                            System.err.println("COULD NOT RETRIEVE MESSAGE " + idToCheck);
-
-                    } catch (Exception e) {
-                        System.err.println("Invalid READ format: " + e.getMessage());
-                    }
-                    continue; // Broadcast yapma, döngüye devam et
-                }
-
-                // SET Komutu
+                // SET Komutu (FIXED: Dağıtık Replikasyon eklendi)
                 if (text.toUpperCase().startsWith("SET ")) {
                     String[] parts = text.split(" ", 3);
                     if (parts.length == 3) {
                         try {
                             int id = Integer.parseInt(parts[1]);
-                            String result = messageStore.put(id, parts[2]);
+                            String msgContent = parts[2];
+
+                            // 1. Kendi üzerine yaz (Lider)
+                            String result = messageStore.put(id, msgContent);
+
+                            // 2. Diğer üyelere replike et (StorageService ile)
+                            List<NodeInfo> sentTo = broadcastStoreToFamily(registry, self, id, msgContent);
+
+                            // 3. İndekse kaydet (ID ile)
+                            MessageIndex.getInstance().addLocation(id, self); // Liderde var
+                            for (NodeInfo node : sentTo) {
+                                MessageIndex.getInstance().addLocation(id, node); // Üyelerde var
+                            }
+
+                            // 4. İstemciye yanıt dön
                             PrintWriter out = new PrintWriter(client.getOutputStream(), true);
                             out.println(result);
+
+                            // Konsola mevcut durumu yaz
+                            MessageIndex.getInstance().printIndex();
+
                         } catch (Exception e) {
                             new PrintWriter(client.getOutputStream(), true).println("ERROR: " + e.getMessage());
                         }
@@ -155,13 +139,49 @@ public class NodeMain {
                     continue;
                 }
 
-                // GET Komutu
+                // GET Komutu (FIXED: Dağıtık Getirme eklendi)
                 if (text.toUpperCase().startsWith("GET ")) {
                     String[] parts = text.split(" ", 2);
                     if (parts.length == 2) {
                         try {
                             int id = Integer.parseInt(parts[1]);
+
+                            // 1. Önce kendi diskine bak
                             String result = messageStore.get(id);
+
+                            if (result.equals("NOT_FOUND")) {
+                                System.out.println("Lokalde bulunamadı (" + id + "), ağda aranıyor...");
+                                // 2. Bulamazsa diğer üyelere sor (MessageIndex kullanarak)
+                                List<String> locations = MessageIndex.getInstance().getLocations(id);
+                                boolean found = false;
+
+                                for (String loc : locations) {
+                                    // Kendimdeyse zaten yukarıda bakmıştım, atla
+                                    if (loc.equals(self.getHost() + ":" + self.getPort()))
+                                        continue;
+
+                                    System.out.println("Asking " + loc + " for message " + id);
+                                    String[] addr = loc.split(":");
+                                    NodeInfo targetNode = NodeInfo.newBuilder()
+                                            .setHost(addr[0])
+                                            .setPort(Integer.parseInt(addr[1]))
+                                            .build();
+
+                                    String remoteData = StorageClient.sendRetrieveRPC(targetNode, id);
+                                    if (remoteData != null) {
+                                        result = remoteData;
+                                        found = true;
+                                        // Cache warming (isteğe bağlı): messageStore.put(id, remoteData);
+                                        break;
+                                    }
+                                }
+
+                                if (!found) {
+                                    new PrintWriter(client.getOutputStream(), true).println("NOT_FOUND");
+                                    continue;
+                                }
+                            }
+
                             PrintWriter out = new PrintWriter(client.getOutputStream(), true);
                             // HaToKuSe protokolü gereği başarılı yanıtlar OK ile başlamalı
                             out.println("OK " + result);
@@ -171,36 +191,6 @@ public class NodeMain {
                     }
                     continue;
                 }
-
-                long ts = System.currentTimeMillis();
-
-                // İstemciye ACK ve Timestamp gönder (Test için gerekli)
-                try {
-                    PrintWriter out = new PrintWriter(client.getOutputStream(), true);
-                    out.println("ACK:" + ts);
-                } catch (Exception ignored) {
-                }
-
-                // Kendi üstüne de yaz
-                System.out.println("Received from TCP: " + text);
-
-                ChatMessage msg = ChatMessage.newBuilder()
-                        .setText(text)
-                        .setFromHost(self.getHost())
-                        .setFromPort(self.getPort())
-                        .setTimestamp(ts)
-                        .build();
-
-                // Tüm family üyelerine broadcast et
-                List<NodeInfo> sentTo = broadcastToFamily(registry, self, msg);
-
-                // İndekse kaydet
-                for (NodeInfo node : sentTo) {
-                    MessageIndex.getInstance().addLocation(ts, node);
-                }
-
-                // Konsola mevcut durumu yaz (Görmek için)
-                MessageIndex.getInstance().printIndex();
             }
 
         } catch (IOException e) {
@@ -213,10 +203,11 @@ public class NodeMain {
         }
     }
 
-    // DÖNÜŞ TİPİ DEĞİŞTİ: void -> List<NodeInfo>
-    private static List<NodeInfo> broadcastToFamily(NodeRegistry registry,
+    // YENİ METOD: StorageService kullanarak replikasyon yapar
+    private static List<NodeInfo> broadcastStoreToFamily(NodeRegistry registry,
             NodeInfo self,
-            ChatMessage msg) {
+            int id,
+            String text) {
 
         // 1. Config'den Tolerans değerini oku
         int tolerance = 1; // Varsayılan
@@ -246,28 +237,19 @@ public class NodeMain {
 
         System.out.println("Replikasyon Hedefleri Seçildi (" + countToSend + " kişi):");
 
+        family.StoredMessage msg = family.StoredMessage.newBuilder()
+                .setId(id)
+                .setText(text)
+                .build();
+
         // 6. Sadece seçilenlere gönder
         for (NodeInfo n : selectedNodes) {
-            ManagedChannel channel = null;
-            try {
-                channel = ManagedChannelBuilder
-                        .forAddress(n.getHost(), n.getPort())
-                        .usePlaintext()
-                        .build();
-
-                FamilyServiceGrpc.FamilyServiceBlockingStub stub = FamilyServiceGrpc.newBlockingStub(channel);
-
-                stub.receiveChat(msg);
-
+            boolean success = StorageClient.sendStoreRPC(n, msg);
+            if (success) {
                 System.out.printf(" -> Mesaj gönderildi: %s:%d%n", n.getHost(), n.getPort());
                 successfulNodes.add(n);
-
-            } catch (Exception e) {
-                System.err.printf(" -> GÖNDERİLEMEDİ %s:%d (%s)%n",
-                        n.getHost(), n.getPort(), e.getMessage());
-            } finally {
-                if (channel != null)
-                    channel.shutdownNow();
+            } else {
+                System.err.printf(" -> GÖNDERİLEMEDİ %s:%d%n", n.getHost(), n.getPort());
             }
         }
         return successfulNodes;

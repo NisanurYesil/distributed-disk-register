@@ -2,35 +2,42 @@ package com.example.family;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Scanner;
 
 public class SimpleClient {
     public static void main(String[] args) {
-        String host = "127.0.0.1";
+        String host = "127.0.0.1"; // Veya Lider'in IP'si
         int port = 6666;
 
-        if (args.length < 1) {
-            System.out.println("Usage: java SimpleClient <message>");
-            return;
-        }
+        System.out.println("HaToKuSe Simple Client Started. Connecting to " + host + ":" + port);
+        System.out.println("Komutlar: SET <id> <msg>, GET <id>, EXIT");
 
-        String message = args[0];
+        try (Scanner scanner = new Scanner(System.in)) {
+            while (true) {
+                System.out.print("> ");
+                String command = scanner.nextLine();
 
-        try (Socket socket = new Socket(host, port);
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+                if (command.equalsIgnoreCase("EXIT"))
+                    break;
 
-            System.out.println("Connected to " + host + ":" + port);
-            out.println(message);
-            System.out.println("Sent: " + message);
+                try (Socket socket = new Socket(host, port);
+                        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-            // The leader doesn't necessarily reply on the same socket for the chat message
-            // immediately
-            // unless it's a READ command or if we modified it to echo.
-            // But for this test, we just want to send.
+                    out.println(command);
 
-            Thread.sleep(1000); // Give it a moment
-        } catch (Exception e) {
-            e.printStackTrace();
+                    // Sunucudan gelen yanıtı oku
+                    String response = in.readLine();
+                    if (response != null) {
+                        System.out.println("Sunucu Yanıtı: " + response);
+                    } else {
+                        System.out.println("Sunucu yanıt vermedi.");
+                    }
+
+                } catch (Exception e) {
+                    System.out.println("Bağlantı hatası: " + e.getMessage());
+                }
+            }
         }
     }
 }

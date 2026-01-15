@@ -10,22 +10,23 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MessageIndex {
     private static final MessageIndex instance = new MessageIndex();
 
-    // Mesaj Zaman Damgası (ID) -> Node Adres Listesi (Host:Port)
-    private final Map<Long, List<String>> index = new ConcurrentHashMap<>();
+    // Mesaj ID (Integer) -> Node Adres Listesi (Host:Port)
+    private final Map<Integer, List<String>> index = new ConcurrentHashMap<>();
 
-    private MessageIndex() {}
+    private MessageIndex() {
+    }
 
     public static MessageIndex getInstance() {
         return instance;
     }
 
-    public void addLocation(long messageId, NodeInfo node) {
+    public void addLocation(int messageId, NodeInfo node) {
         String address = node.getHost() + ":" + node.getPort();
         index.computeIfAbsent(messageId, k -> Collections.synchronizedList(new ArrayList<>()))
                 .add(address);
     }
 
-    public List<String> getLocations(long messageId) {
+    public List<String> getLocations(int messageId) {
         return index.getOrDefault(messageId, Collections.emptyList());
     }
 

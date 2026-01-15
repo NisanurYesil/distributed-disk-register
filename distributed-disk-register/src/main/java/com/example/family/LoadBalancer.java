@@ -18,7 +18,8 @@ public class LoadBalancer {
         }
 
         // 1. Listeyi port numarasına göre sırala (Kararlılık/Stability için)
-        // Set yapısı sıralı olmadığı için, her çağrıda listenin aynı sırada olduğundan emin olmalıyız.
+        // Set yapısı sıralı olmadığı için, her çağrıda listenin aynı sırada olduğundan
+        // emin olmalıyız.
         List<NodeInfo> sorted = new ArrayList<>(candidates);
         sorted.sort(Comparator.comparingInt(NodeInfo::getPort));
 

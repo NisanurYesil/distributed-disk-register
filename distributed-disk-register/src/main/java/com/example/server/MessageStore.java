@@ -28,6 +28,9 @@ public class MessageStore {
         if ("unbuffered".equalsIgnoreCase(ioType)) {
             this.diskStrategy = new UnbufferedDiskStrategy(dir);
             System.out.println("LOG: Disk Modu -> UNBUFFERED (Güvenli/Direct IO)");
+        } else if ("zerocopy".equalsIgnoreCase(ioType)) {
+            this.diskStrategy = new ZeroCopyDiskStrategy(dir);
+            System.out.println("LOG: Disk Modu -> ZERO COPY (En Hızlı/Mapped IO)");
         } else {
             this.diskStrategy = new BufferedDiskStrategy(dir);
             System.out.println("LOG: Disk Modu -> BUFFERED (Hızlı/Standart IO)");
