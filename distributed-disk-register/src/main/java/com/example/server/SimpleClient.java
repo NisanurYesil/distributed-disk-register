@@ -7,6 +7,9 @@ import java.util.Scanner;
 public class SimpleClient {
     public static void main(String[] args) {
         String host = "127.0.0.1";
+        if (args.length > 0) {
+            host = args[0];
+        }
         int port = 6666;
 
         System.out.println("Simple Client Başlatıldı. Bağlanılıyor: " + host + ":" + port);

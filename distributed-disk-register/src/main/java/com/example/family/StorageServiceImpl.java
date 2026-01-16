@@ -1,6 +1,6 @@
 package com.example.family;
 
-import family.*;
+// import family.*;
 import io.grpc.stub.StreamObserver;
 import com.example.server.MessageStore;
 
@@ -10,6 +10,7 @@ public class StorageServiceImpl extends StorageServiceGrpc.StorageServiceImplBas
     public StorageServiceImpl(MessageStore messageStore) {
         this.messageStore = messageStore;
     }
+
     @Override
     public void store(StoredMessage request, StreamObserver<StoreResult> responseObserver) {
         try {

@@ -1,6 +1,6 @@
 package com.example.family;
 
-import family.NodeInfo;
+// import family.NodeInfo;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;

@@ -4,13 +4,7 @@ import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.ArrayList;
 import com.example.config.ToleranceConfigReader; // Config okumak için
-import family.Empty;
-import family.FamilyServiceGrpc;
-import family.FamilyView;
-import family.NodeInfo;
-import family.ChatMessage;
-import family.StoredMessage; // YENİ EKLENDİ
-
+// imports removed
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
@@ -32,8 +26,17 @@ public class NodeMain {
     private static final int PRINT_INTERVAL_SECONDS = 10;
 
     public static void main(String[] args) throws Exception {
-        // --- FIX 1: Dinamik IP Tespiti ---
-        String host = java.net.InetAddress.getLocalHost().getHostAddress();
+        // --- FIX 1: Dinamik IP Tespiti (LAN IP) ---
+        // Eğer komut satırından IP verilirse onu kullan yoksa bul
+        String host = getLanIp();
+
+        // Komut satırından hedef Lider IP'si gelebilir
+        // Örn: java NodeMain [TARGET_LEADER_IP]
+        String targetLeaderIp = null;
+        if (args.length > 0) {
+            targetLeaderIp = args[0];
+            System.out.println("Hedef Lider IP girildi: " + targetLeaderIp);
+        }
         // -------------------------------
 
         int port = findFreePort(START_PORT);
@@ -59,17 +62,45 @@ public class NodeMain {
 
         System.out.printf("Node started on %s:%d%n", host, port);
 
-        // Eğer bu ilk node ise (port 5555), TCP 6666'da text dinlesin
+        // Eğer bu ilk node ise (port 5555) VE hedef lider yoksa, TCP 6666'da text
+        // dinlesin
+        // Hedef lider varsa muhtemelen 2. PC'deyizdir, yine de 5555 olma ihtimali var.
+        // Basit kural: 5555 isek Lider adayıyızdır.
         if (port == START_PORT) {
             startLeaderTextListener(registry, self, messageStore);
         }
 
-        discoverExistingNodes(host, port, registry, self);
+        discoverExistingNodes(host, port, registry, self, targetLeaderIp);
         startFamilyPrinter(registry, self, messageStore);
         // startHealthChecker(registry, self);
 
         server.awaitTermination();
 
+    }
+
+    // Gerçek LAN IP'sini bulmaya çalışır (192.168... gibi)
+    private static String getLanIp() {
+        try {
+            java.util.Enumeration<java.net.NetworkInterface> interfaces = java.net.NetworkInterface
+                    .getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                java.net.NetworkInterface iface = interfaces.nextElement();
+                if (iface.isLoopback() || !iface.isUp())
+                    continue;
+
+                java.util.Enumeration<java.net.InetAddress> addresses = iface.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    java.net.InetAddress addr = addresses.nextElement();
+                    // IPv4 ve link-local olmayan adres
+                    if (addr instanceof java.net.Inet4Address && !addr.isLinkLocalAddress()) {
+                        return addr.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "127.0.0.1"; // Bulamazsa localhost
     }
 
     private static void startLeaderTextListener(NodeRegistry registry, NodeInfo self,
@@ -237,7 +268,7 @@ public class NodeMain {
 
         System.out.println("Replikasyon Hedefleri Seçildi (" + countToSend + " kişi):");
 
-        family.StoredMessage msg = family.StoredMessage.newBuilder()
+        StoredMessage msg = StoredMessage.newBuilder()
                 .setId(id)
                 .setText(text)
                 .build();
@@ -269,29 +300,91 @@ public class NodeMain {
     private static void discoverExistingNodes(String host,
             int selfPort,
             NodeRegistry registry,
-            NodeInfo self) {
+            NodeInfo self,
+            String targetLeaderIp) { // targetLeaderIp eklendi
 
-        for (int port = START_PORT; port < selfPort; port++) {
-            ManagedChannel channel = null;
-            try {
-                channel = ManagedChannelBuilder
-                        .forAddress(host, port)
-                        .usePlaintext()
-                        .build();
+        List<String> addressesToCheck = new ArrayList<>();
+        long scanTimeoutMs = 200; // Varsayılan hızlı tarama (LAN için)
 
-                FamilyServiceGrpc.FamilyServiceBlockingStub stub = FamilyServiceGrpc.newBlockingStub(channel);
+        // 1. Hedef Lider IP verilmişse sadece onu dene
+        if (targetLeaderIp != null && !targetLeaderIp.isEmpty()) {
+            System.out.println("Doğrudan hedef lidere bağlanılıyor: " + targetLeaderIp);
+            addressesToCheck.add(targetLeaderIp);
+            scanTimeoutMs = 5000; // Hedef belliyse süre ver (Güvenli bağlantı)
+        }
+        // 2. Hedef yoksa ve Localhost değilsek -> LAN Taraması yap
+        else if (!host.equals("127.0.0.1") && !host.equals("localhost")) {
+            System.out.println("Hedef belirtilmedi. LAN taranıyor (Bu işlem biraz sürebilir)...");
+            String prefix = host.substring(0, host.lastIndexOf(".") + 1);
 
-                FamilyView view = stub.join(self);
-                registry.addAll(view.getMembersList());
-
-                System.out.printf("Joined through %s:%d, family size now: %d%n",
-                        host, port, registry.snapshot().size());
-
-            } catch (Exception ignored) {
-            } finally {
-                if (channel != null)
-                    channel.shutdownNow();
+            // Tüm subneti ekle (1'den 254'e kadar)
+            for (int i = 1; i < 255; i++) {
+                String potentialIp = prefix + i;
+                // Kendimizi taramayalım
+                if (!potentialIp.equals(host)) {
+                    addressesToCheck.add(potentialIp);
+                }
             }
+        }
+
+        // --- TARAMA BAŞLIYOR ---
+
+        boolean joined = false;
+
+        // Önce dış adresleri dene (Varsa)
+        if (!addressesToCheck.isEmpty()) {
+            // Basitçe ilk bulduğuna bağlan
+            for (String targetHost : addressesToCheck) {
+                // Sadece Lider portunu (5555) dene.
+                if (tryJoin(targetHost, START_PORT, self, registry, scanTimeoutMs)) {
+                    joined = true;
+                    break;
+                }
+            }
+        }
+
+        // Eğer LAN'da bulamadıysak ve Localhost isek veya fallback gerekirse yerel
+        // portları tara
+        if (!joined) {
+            System.out.println("Ağda Lider bulunamadı veya yerel moddayız. Yerel portlar taranıyor...");
+            for (int p = START_PORT; p < selfPort; p++) {
+                if (tryJoin(host, p, self, registry, 200)) { // Yerel tarama hızlı olsun
+                    joined = true;
+                    // break; // Hepsini tanıması için break yapmıyoruz (eski mantık), ama aslında
+                    // join yeterli.
+                }
+            }
+        }
+    }
+
+    private static boolean tryJoin(String targetHost, int port, NodeInfo self, NodeRegistry registry, long timeoutMs) {
+        ManagedChannel channel = null;
+        try {
+            // Timeout ayarı olmadığı için varsayılanı kullanır, LAN'da hızlıdır.
+            // Ancak olmayan IP'ler için biraz bekletebilir.
+            channel = ManagedChannelBuilder
+                    .forAddress(targetHost, port)
+                    .usePlaintext()
+                    .build();
+
+            FamilyServiceGrpc.FamilyServiceBlockingStub stub = FamilyServiceGrpc.newBlockingStub(channel);
+
+            // Bağlantı denemesi (biraz riskli, timeout koymak lazım ama gRPC managed
+            // channel handle eder)
+            FamilyView view = stub.withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS).join(self);
+            registry.addAll(view.getMembersList());
+
+            System.out.printf("BAŞARILI! %s:%d adresindeki aileye katılındı. Aile boyutu: %d%n",
+                    targetHost, port, registry.snapshot().size());
+
+            return true;
+
+        } catch (Exception e) {
+            // System.out.println("... " + targetHost + " yanıt vermedi.");
+            return false;
+        } finally {
+            if (channel != null)
+                channel.shutdownNow();
         }
     }
 
@@ -327,7 +420,7 @@ public class NodeMain {
                         FamilyServiceGrpc.FamilyServiceBlockingStub stub = FamilyServiceGrpc.newBlockingStub(channel);
 
                         // RPC Çağrısı
-                        family.MessageStats stats = stub.getStats(Empty.newBuilder().build());
+                        MessageStats stats = stub.getStats(Empty.newBuilder().build());
                         System.out.printf(" -> Node %d has %d messages%n", n.getPort(), stats.getMessageCount());
                         totalNetworkMessages += stats.getMessageCount();
 

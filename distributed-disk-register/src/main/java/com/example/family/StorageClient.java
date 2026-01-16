@@ -1,8 +1,6 @@
 package com.example.family;
-import family.NodeInfo;
-import family.StoredMessage;
-import family.MessageId;
-import family.StorageServiceGrpc;
+
+// import family.*;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
@@ -15,8 +13,7 @@ public class StorageClient {
                     .usePlaintext()
                     .build();
 
-            StorageServiceGrpc.StorageServiceBlockingStub stub =
-                    StorageServiceGrpc.newBlockingStub(channel);
+            StorageServiceGrpc.StorageServiceBlockingStub stub = StorageServiceGrpc.newBlockingStub(channel);
 
             stub.store(msg); // RPC çağrısı
             return true;
@@ -25,7 +22,8 @@ public class StorageClient {
                     node.getHost(), node.getPort(), e.getMessage());
             return false;
         } finally {
-            if (channel != null) channel.shutdownNow();
+            if (channel != null)
+                channel.shutdownNow();
         }
     }
 
@@ -36,8 +34,7 @@ public class StorageClient {
                     .usePlaintext()
                     .build();
 
-            StorageServiceGrpc.StorageServiceBlockingStub stub =
-                    StorageServiceGrpc.newBlockingStub(channel);
+            StorageServiceGrpc.StorageServiceBlockingStub stub = StorageServiceGrpc.newBlockingStub(channel);
 
             MessageId req = MessageId.newBuilder().setId(id).build();
             return stub.retrieve(req).getText();
@@ -46,7 +43,8 @@ public class StorageClient {
                     node.getHost(), node.getPort(), e.getMessage());
             return null;
         } finally {
-            if (channel != null) channel.shutdownNow();
+            if (channel != null)
+                channel.shutdownNow();
         }
     }
 }
