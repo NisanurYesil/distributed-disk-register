@@ -1,24 +1,49 @@
 package com.example.server;
 
-import java.io.BufferedWriter;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.Socket;
+import java.util.Scanner;
 
 public class SimpleClient {
     public static void main(String[] args) {
-        // Liderin dinlediği port: 6666
-        try (Socket socket = new Socket("127.0.0.1", 6666);
-             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()))) {
+        String host = "127.0.0.1";
+        int port = 6666;
 
-            String message = "Bu mesaj sadece 2 kisiye gitmeli!";
-            writer.write(message);
-            writer.newLine();
-            writer.flush();
+        System.out.println("Simple Client Başlatıldı. Bağlanılıyor: " + host + ":" + port);
+        System.out.println("Komutlar: SET <id> <mesaj>, GET <id>, EXIT");
 
-            System.out.println("Mesaj gonderildi: " + message);
+        try (Socket socket = new Socket(host, port);
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                Scanner scanner = new Scanner(System.in)) {
 
-        } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Bağlantı başarılı! Komut girebilirsiniz.");
+
+            while (true) {
+                System.out.print("> ");
+                if (!scanner.hasNextLine())
+                    break;
+
+                String command = scanner.nextLine().trim();
+
+                if (command.isEmpty())
+                    continue;
+                if (command.equalsIgnoreCase("EXIT"))
+                    break;
+
+                out.println(command);
+
+                // Sunucudan cevabı oku
+                String response = in.readLine();
+                if (response == null) {
+                    System.out.println("Sunucu bağlantısı koptu.");
+                    break;
+                }
+                System.out.println("Sunucu: " + response);
+            }
+
+        } catch (IOException e) {
+            System.err.println("Bağlantı hatası: " + e.getMessage());
         }
     }
 }
