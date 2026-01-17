@@ -144,21 +144,35 @@ public class NodeMain {
                             int id = Integer.parseInt(parts[1]);
                             String msgContent = parts[2];
 
-                            // 1. Kendi üzerine yaz (Lider)
-                            String result = messageStore.put(id, msgContent);
+                            // 1. Kendi üzerine yazma işlemini İPTAL ET (Lider sadece yönlendirici olsun)
+                            // String result = messageStore.put(id, msgContent);
+                            String result = "OK"; 
 
                             // 2. Diğer üyelere replike et (StorageService ile)
                             List<NodeInfo> sentTo = broadcastStoreToFamily(registry, self, id, msgContent);
 
-                            // 3. İndekse kaydet (ID ile)
-                            MessageIndex.getInstance().addLocation(id, self); // Liderde var
+                            // 3. İndekse kendini EKLEME (Çünkü kaydetmedik)
+                            // MessageIndex.getInstance().addLocation(id, self);
                             for (NodeInfo node : sentTo) {
                                 MessageIndex.getInstance().addLocation(id, node); // Üyelerde var
                             }
 
-                            // 4. İstemciye yanıt dön
-                            PrintWriter out = new PrintWriter(client.getOutputStream(), true);
-                            out.println(result);
+                            // 4. İstemciye yanıt dön (TOLERANCE KONTROLÜ)
+                            int tolerance = 1; 
+                            try {
+                                ToleranceConfigReader config = new ToleranceConfigReader();
+                                tolerance = config.getTolerance();
+                            } catch (Exception e) {
+                                System.err.println("Config okunamadı, varsayılan tolerans(1) kullanılıyor.");
+                            }
+
+                            if (sentTo.size() >= tolerance) {
+                                PrintWriter out = new PrintWriter(client.getOutputStream(), true);
+                                out.println("OK");
+                            } else {
+                                PrintWriter out = new PrintWriter(client.getOutputStream(), true);
+                                out.println("ERROR: Tolerance not met. Required: " + tolerance + ", Achieved: " + sentTo.size());
+                            }
 
                             // Konsola mevcut durumu yaz
                             MessageIndex.getInstance().printIndex();
