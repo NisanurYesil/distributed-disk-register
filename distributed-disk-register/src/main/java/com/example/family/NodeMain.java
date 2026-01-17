@@ -301,58 +301,73 @@ public class NodeMain {
             int selfPort,
             NodeRegistry registry,
             NodeInfo self,
-            String targetLeaderIp) { // targetLeaderIp eklendi
+            String targetLeaderIp) {
 
         List<String> addressesToCheck = new ArrayList<>();
-        long scanTimeoutMs = 200; // Varsayılan hızlı tarama (LAN için)
+        long scanTimeoutMs = 2000; // Artık paraleliz, uzun bekleyebiliriz (2sn)
 
         // 1. Hedef Lider IP verilmişse sadece onu dene
         if (targetLeaderIp != null && !targetLeaderIp.isEmpty()) {
             System.out.println("Doğrudan hedef lidere bağlanılıyor: " + targetLeaderIp);
-            addressesToCheck.add(targetLeaderIp);
-            scanTimeoutMs = 5000; // Hedef belliyse süre ver (Güvenli bağlantı)
+            if (tryJoin(targetLeaderIp, START_PORT, self, registry, 5000)) {
+                return; // Başarılı
+            }
         }
-        // 2. Hedef yoksa ve Localhost değilsek -> LAN Taraması yap
+        // 2. Hedef yoksa ve Localhost değilsek -> LAN Taraması IP Listesi Hazırla
         else if (!host.equals("127.0.0.1") && !host.equals("localhost")) {
-            System.out.println("Hedef belirtilmedi. LAN taranıyor (Bu işlem biraz sürebilir)...");
+            System.out.println("Hedef belirtilmedi. LAN taranıyor (Paralel taranıyor, maksimum 3sn sürecek)...");
             String prefix = host.substring(0, host.lastIndexOf(".") + 1);
 
-            // Tüm subneti ekle (1'den 254'e kadar)
+            // Tüm subneti ekle
             for (int i = 1; i < 255; i++) {
                 String potentialIp = prefix + i;
-                // Kendimizi taramayalım
                 if (!potentialIp.equals(host)) {
                     addressesToCheck.add(potentialIp);
                 }
             }
         }
 
-        // --- TARAMA BAŞLIYOR ---
+        // --- PARALEL TARAMA BAŞLIYOR ---
+        final java.util.concurrent.atomic.AtomicBoolean joined = new java.util.concurrent.atomic.AtomicBoolean(false);
 
-        boolean joined = false;
+        if (!addressesToCheck.isEmpty() && targetLeaderIp == null) {
+            // Sadece Lider portunu (5555) tara
+            ExecutorService executor = Executors.newFixedThreadPool(100); // 100 Thread ile hızlı tara
 
-        // Önce dış adresleri dene (Varsa)
-        if (!addressesToCheck.isEmpty()) {
-            // Basitçe ilk bulduğuna bağlan
             for (String targetHost : addressesToCheck) {
-                // Sadece Lider portunu (5555) dene.
-                if (tryJoin(targetHost, START_PORT, self, registry, scanTimeoutMs)) {
-                    joined = true;
-                    break;
-                }
+                executor.submit(() -> {
+                    if (joined.get())
+                        return; // Biri bulduysa diğerleri dursun (CPU tasarrufu)
+
+                    // tryJoin zaten exception handle ediyor
+                    if (tryJoin(targetHost, START_PORT, self, registry, scanTimeoutMs)) {
+                        joined.set(true);
+                    }
+                });
+            }
+
+            executor.shutdown();
+            try {
+                // Timeout süresinden biraz fazla bekle ki tüm threadler dönebilsin
+                executor.awaitTermination(scanTimeoutMs + 1000, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                System.err.println("Tarama kesildi.");
             }
         }
 
+        if (joined.get()) {
+            return; // Bulduk
+        }
+
         // Eğer LAN'da bulamadıysak ve Localhost isek veya fallback gerekirse yerel
-        // portları tara
-        if (!joined) {
-            System.out.println("Ağda Lider bulunamadı veya yerel moddayız. Yerel portlar taranıyor...");
-            for (int p = START_PORT; p < selfPort; p++) {
-                if (tryJoin(host, p, self, registry, 200)) { // Yerel tarama hızlı olsun
-                    joined = true;
-                    // break; // Hepsini tanıması için break yapmıyoruz (eski mantık), ama aslında
-                    // join yeterli.
-                }
+        // portları tara (Burayı da hızlandırmak için paralel yapmıyoruz, zaten az port
+        // var ve localhost hızlıdır)
+        System.out.println("Ağda Lider bulunamadı veya yerel moddayız. Yerel portlar taranıyor...");
+        for (int p = START_PORT; p < selfPort; p++) {
+            if (tryJoin(host, p, self, registry, 200)) { // Yerel tarama hızlı olsun
+                // joined = true; // gerek yok, return yeterli
+                // Birine bağlandık, ama belki diğerlerini de görmek isteriz?
+                // Orijinal kodda break yoktu, ama mantıken bir cluster'a dahil olduk.
             }
         }
     }
